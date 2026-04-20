@@ -1,15 +1,32 @@
+'''
+Author: ganzhiyu syu015201@163.com
+Date: 2026-03-12 11:23:07
+LastEditors: ganzhiyu syu015201@163.com
+LastEditTime: 2026-04-20 11:04:40
+FilePath: \Agents\agent-try\tools\weather_search.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 from serpapi import SerpApiClient
 import os
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 def search(query: str) -> str:
     """
     一个基于SerpApi的实战网页搜索引擎工具。
     它会智能地解析搜索结果，优先返回直接答案或知识图谱信息。
     """
-    print(f"🔍 正在执行 [SerpApi] 网页搜索: {query}")
+    # print(f"🔍 正在执行 [SerpApi] 网页搜索: {query}")
+    logger.info(f"🔍 正在执行 [SerpApi] 网页搜索: {query}")
     try:
         api_key = os.getenv("SERPAPI_API_KEY")
         if not api_key:
+            logger.error("错误:SERPAPI_API_KEY 未在 .env 文件中配置。")
             return "错误:SERPAPI_API_KEY 未在 .env 文件中配置。"
 
         params = {
@@ -19,10 +36,10 @@ def search(query: str) -> str:
             "gl": "cn",  # 国家代码
             "hl": "zh-cn", # 语言代码
         }
-        
+
         client = SerpApiClient(params)
         results = client.get_dict()
-        
+
         # 智能解析:优先寻找最直接的答案
         if "answer_box_list" in results:
             return "\n".join(results["answer_box_list"])
@@ -37,8 +54,9 @@ def search(query: str) -> str:
                 for i, res in enumerate(results["organic_results"][:3])
             ]
             return "\n\n".join(snippets)
-        
+        logger.warning(f"未找到关于 '{query}' 的直接答案，返回了 {len(results.get('organic_results', []))} 个有机结果的摘要。")
         return f"对不起，没有找到关于 '{query}' 的信息。"
 
     except Exception as e:
+        logger.error(f"搜索时发生错误: {e}")
         return f"搜索时发生错误: {e}"
