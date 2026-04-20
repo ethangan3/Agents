@@ -1,11 +1,3 @@
-'''
-Author: ganzhiyu syu015201@163.com
-Date: 2026-03-12 15:22:13
-LastEditors: ganzhiyu syu015201@163.com
-LastEditTime: 2026-03-12 15:22:20
-FilePath: \Agents\agent-try\models\prompts\refine_prompt.py
-Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
-'''
 REFINE_PROMPT_TEMPLATE = """
 你是一位资深的Python程序员。你正在根据一位代码评审专家的反馈来优化你的代码。
 

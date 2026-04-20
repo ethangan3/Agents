@@ -1,11 +1,3 @@
-'''
-Author: ganzhiyu syu015201@163.com
-Date: 2026-03-12 11:32:24
-LastEditors: ganzhiyu syu015201@163.com
-LastEditTime: 2026-04-20 11:32:28
-FilePath: \Agents\agent-try\models\Agents.py
-Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
-'''
 from .LLM import HelloAgentsLLM
 from tools.general import ToolExecutor
 from .prompts.react_prompts import REACT_PROMPT_TEMPLATE

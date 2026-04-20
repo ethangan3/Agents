@@ -1,11 +1,3 @@
-'''
-Author: ganzhiyu syu015201@163.com
-Date: 2026-04-20 09:09:56
-LastEditors: ganzhiyu syu015201@163.com
-LastEditTime: 2026-04-20 09:10:03
-FilePath: \Agents\agent-try\test-helloagent.py
-Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
-'''
 # 配置好同级文件夹下.env中的大模型API, 可参考code文件夹配套的.env.example，也可以拿前几章的案例的.env文件复用。
 from hello_agents import SimpleAgent, HelloAgentsLLM
 from dotenv import load_dotenv

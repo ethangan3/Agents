@@ -1,11 +1,3 @@
-'''
-Author: ganzhiyu syu015201@163.com
-Date: 2026-03-12 11:32:47
-LastEditors: ganzhiyu syu015201@163.com
-LastEditTime: 2026-03-12 14:50:41
-FilePath: \Agents\agent-try\prompts\react_prompts.py
-Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
-'''
 # ReAct 提示词模板
 REACT_PROMPT_TEMPLATE = """
 请注意，你是一个有能力调用外部工具的智能助手。
