@@ -1,1 +1,11 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.vscode/
 agent-try/.env
+llm-cookbook-main/
+nanoGPT-master/
+Reasearch/
+agent-try\models\__pycache__
