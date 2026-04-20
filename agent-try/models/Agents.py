@@ -117,7 +117,7 @@ class ReActAgent:
             # 4. 执行Action
             if action.startswith("Finish"):
                 # 如果是Finish指令，提取最终答案并结束
-                final_answer = re.match(r"Finish\[(.*)\]", action).group(1)
+                final_answer = re.search(r"Finish\[(.*)\]", action, re.DOTALL).group(1).strip()
                 # print(f"🎉 最终答案: {final_answer}")
                 logger.info(f"最终答案: {final_answer}")
                 # return {
@@ -195,17 +195,33 @@ class ReActAgent:
         )
 
 
+    # def _parse_output(self, text: str):
+    #     """解析LLM的输出，提取Thought和Action。"""
+    #     thought_match = re.search(r"Thought: (.*)", text)
+    #     action_match = re.search(r"Action: (.*)", text)
+    #     thought = thought_match.group(1).strip() if thought_match else None
+    #     action = action_match.group(1).strip() if action_match else None
+    #     return thought, action
     def _parse_output(self, text: str):
         """解析LLM的输出，提取Thought和Action。"""
-        thought_match = re.search(r"Thought: (.*)", text)
-        action_match = re.search(r"Action: (.*)", text)
-        thought = thought_match.group(1).strip() if thought_match else None
-        action = action_match.group(1).strip() if action_match else None
+        text = str(text).strip()
+
+        thought = None
+        action = None
+
+        if "Thought:" in text and "Action:" in text:
+            thought = text.split("Thought:", 1)[1].split("Action:", 1)[0].strip()
+            action = text.split("Action:", 1)[1].strip()
+        elif "Action:" in text:
+            action = text.split("Action:", 1)[1].strip()
+        elif "Thought:" in text:
+            thought = text.split("Thought:", 1)[1].strip()
+
         return thought, action
 
     def _parse_action(self, action_text: str):
         """解析Action字符串，提取工具名称和输入。"""
-        match = re.match(r"(\w+)\[(.*)\]", action_text)
+        match = re.match(r"(\w+)\[(.*)\]", action_text, re.DOTALL)
         if match:
             return match.group(1), match.group(2)
         return None, None
