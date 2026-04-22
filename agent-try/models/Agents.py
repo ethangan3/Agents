@@ -4,7 +4,7 @@ from .prompts.react_prompts import REACT_PROMPT_TEMPLATE
 import re
 import logging
 from pydantic import BaseModel
-from typing import Literal, Union, List, Dict, Optional
+from typing import Literal, Optional
 
 logging.basicConfig(
     level=logging.INFO,
@@ -117,7 +117,7 @@ class ReActAgent:
             # 4. 执行Action
             if action.startswith("Finish"):
                 # 如果是Finish指令，提取最终答案并结束
-                final_answer = re.search(r"Finish\[(.*)\]", action, re.DOTALL).group(1).strip()
+                final_answer = self._extract_final_answer(action)
                 # print(f"🎉 最终答案: {final_answer}")
                 logger.info(f"最终答案: {final_answer}")
                 # return {
@@ -134,7 +134,7 @@ class ReActAgent:
                 )
 
             tool_name, tool_input = self._parse_action(action)
-            if not tool_name or not tool_input:
+            if not tool_name or tool_input is None:
                 # ... 处理无效Action格式 ...
                 observation = f"错误:无法解析Action '{action}' 的工具名称或输入。"
                 print(observation)
@@ -155,12 +155,10 @@ class ReActAgent:
             # print(f"🎬 行动: {tool_name}[{tool_input}]")
             logger.info(f"行动: {tool_name}[{tool_input}]")
 
-            tool_function = self.tool_executor.getTool(tool_name)
-            if not tool_function:
-                observation = f"错误:未找到名为 '{tool_name}' 的工具。"
-            else:
-                observation = tool_function(tool_input) # 调用真实工具
-                # (这段逻辑紧随工具调用之后，在 while 循环的末尾)
+            try:
+                observation = self.tool_executor.executeTool(tool_name, tool_input)
+            except Exception as exc:
+                observation = f"工具调用失败: {exc}"
             # print(f"👀 观察: {observation}")
             logger.info(f"观察: {observation}")
 
@@ -217,6 +215,9 @@ class ReActAgent:
         elif "Thought:" in text:
             thought = text.split("Thought:", 1)[1].strip()
 
+        if action and "\nObservation:" in action:
+            action = action.split("\nObservation:", 1)[0].strip()
+
         return thought, action
 
     def _parse_action(self, action_text: str):
@@ -225,6 +226,18 @@ class ReActAgent:
         if match:
             return match.group(1), match.group(2)
         return None, None
+
+    def _extract_final_answer(self, action_text: str) -> str:
+        """从Finish动作中提取最终答案。"""
+        bracket_match = re.match(r"Finish\[(.*)\]\s*$", action_text, re.DOTALL)
+        if bracket_match:
+            return bracket_match.group(1).strip()
+
+        call_match = re.match(r"Finish\(\s*answer\s*=\s*['\"]?(.*?)['\"]?\s*\)\s*$", action_text, re.DOTALL)
+        if call_match:
+            return call_match.group(1).strip()
+
+        return action_text.removeprefix("Finish").strip(" ()[]")
     # def _format_history(self):
     #     """将历史记录格式化为字符串，供提示词使用。"""
     #     formatted = []

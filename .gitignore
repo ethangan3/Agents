@@ -8,5 +8,8 @@ agent-try/.env
 llm-cookbook-main/
 nanoGPT-master/
 Reasearch/
-agent-try\models\__pycache__
+agent-try\models\__pycache__\
 .vscode/
+agent-try\tools\__pycache__\
+agent-try\service\__pycache__\
+agent-try\models\prompts\__pycache__\
