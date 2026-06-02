@@ -1,205 +1,125 @@
-from .LLM import HelloAgentsLLM
-from mini_agent.tools.general import ToolExecutor
-from .prompts.react_prompts import REACT_PROMPT_TEMPLATE
-import re
 import logging
-from pydantic import BaseModel
-from typing import Literal, Optional
+import re
+
+from mini_agent.agents.BaseAgent import AgentRunContext, AgentRunInput, AgentRunResult, BaseAgent
+from mini_agent.agents.LLM import HelloAgentsLLM
+from mini_agent.agents.prompts.react_prompts import REACT_PROMPT_TEMPLATE
+from mini_agent.tools.general import ToolExecutor
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-class HistoryItem(BaseModel):
-    step: int
-    type: Literal["thought", "action", "observation"]
-    content: str
 
-class AgentResult(BaseModel):
-    question: str
-    answer: Optional[str] = None
-    reason: Optional[str] = None
-    history: list[HistoryItem]
+class ReActAgent(BaseAgent):
+    agent_type = "react"
 
-
-class ReActAgent:
-    def __init__(self, llm_client: HelloAgentsLLM, tool_executor: ToolExecutor, max_steps: int = 5):
+    def __init__(
+        self,
+        llm_client: HelloAgentsLLM,
+        tool_executor: ToolExecutor,
+        max_steps: int = 5,
+    ):
+        super().__init__(max_steps=max_steps)
         self.llm_client = llm_client
         self.tool_executor = tool_executor
-        self.max_steps = max_steps
-        # self.history = []
-        self.history: list[HistoryItem] = []
 
-    def run(self, question: str):
-        """
-        运行ReAct智能体来回答一个问题。
-        """
-        # self.history = [] # 每次运行时重置历史记录
-        self.history: list[HistoryItem] = [] # 每次运行时重置历史记录
-        current_step = 0
+    def _run(
+        self,
+        run_input: AgentRunInput,
+        context: AgentRunContext,
+    ) -> AgentRunResult:
+        question = run_input.question
 
-        while current_step < self.max_steps:
-            current_step += 1
-            print(f"--- 第 {current_step} 步 ---")
+        while context.has_step_budget():
+            logger.info("ReAct step %s started.", len(context.steps) + 1)
 
-            # 1. 格式化提示词
             tools_desc = self.tool_executor.getAvailableTools()
-            history_str = self._format_history()
+            history_str = self._format_history(context.steps)
             prompt = REACT_PROMPT_TEMPLATE.format(
                 tools=tools_desc,
                 question=question,
-                history=history_str
+                history=history_str,
             )
 
-            # 2. 调用LLM进行思考
             messages = [{"role": "user", "content": prompt}]
             response_text = self.llm_client.think(messages=messages)
             if not response_text:
-                # print("错误:LLM未能返回有效响应。")
-                logger.error("LLM未能返回有效响应。")
-                # return {
-                #     "question": question,
-                #     "answer": None,
-                #     "reason": "LLM未能返回有效响应。",
-                #     "history": self.history
-                # }
-                return AgentResult(
-                    question=question,
-                    answer=None,
-                    reason="LLM未能返回有效响应。",
-                    history=self.history
+                error = "LLM未能返回有效响应。"
+                context.add_step(error=error)
+                return super()._build_result(
+                    context=context,
+                    status="failed",
+                    error=error,
                 )
-            # (这段逻辑在 run 方法的 while 循环内)
-            # 3. 解析LLM的输出
-            thought, action = self._parse_output(response_text)
-            
-            if thought:
-                # print(f"思考: {thought}")
-                logger.info(f"思考: {thought}")
-                # self.history.append({
-                #     "step": current_step,
-                #     "type": "thought",
-                #     "content": thought
-                # })
-                self.history.append(HistoryItem(
-                    step=current_step,
-                    type="thought",
-                    content=thought
-                ))
 
-            if not action:
-                # print("警告:未能解析出有效的Action，流程终止。")
-                logger.warning("未能解析出有效的Action，流程终止。")
-                # return {
-                #     "question": question,
-                #     "answer": None,
-                #     "reason": "未能解析出有效的Action。",
-                #     "history": self.history
-                # }
-                return AgentResult(
-                    question=question,
-                    answer=None,
-                    reason="未能解析出有效的Action。",
-                    history=self.history
+            thought, action_text = self._parse_output(response_text)
+
+            if not action_text:
+                error = "未能解析出有效的Action。"
+                context.add_step(
+                    thought=thought,
+                    error=error,
+                    metadata={"raw_llm_output": response_text},
                 )
-            # self.history.append({
-            #     "step": current_step,
-            #     "type": "action",
-            #     "content": action
-            # })
-            self.history.append(HistoryItem(
-                step=current_step,
-                type="action",
-                content=action
-            ))
-            # 4. 执行Action
-            if action.startswith("Finish"):
-                # 如果是Finish指令，提取最终答案并结束
-                final_answer = self._extract_final_answer(action)
-                # print(f"🎉 最终答案: {final_answer}")
-                logger.info(f"最终答案: {final_answer}")
-                # return {
-                #     "question": question,
-                #     "answer": final_answer,
-                #     "reason": "成功完成任务。",
-                #     "history": self.history
-                # }
-                return AgentResult(
-                    question=question,
+                return super()._build_result(
+                    context=context,
+                    status="failed",
+                    error=error,
+                )
+
+            if action_text.startswith("Finish"):
+                final_answer = self._extract_final_answer(action_text)
+                context.add_step(
+                    thought=thought,
+                    action="Finish",
+                    action_input=final_answer,
+                    observation="Agent produced final answer.",
+                    metadata={"raw_llm_output": response_text},
+                )
+                return super()._build_result(
+                    context=context,
                     answer=final_answer,
-                    reason="成功完成任务。",
-                    history=self.history
+                    status="success",
                 )
 
-            tool_name, tool_input = self._parse_action(action)
+            tool_name, tool_input = self._parse_action(action_text)
             if not tool_name or tool_input is None:
-                # ... 处理无效Action格式 ...
-                observation = f"错误:无法解析Action '{action}' 的工具名称或输入。"
-                print(observation)
-                logger.error(observation)
-                # self.history.append({
-                #     "step": current_step,
-                #     "type": "observation",
-                #     "content": observation
-                # })
-                self.history.append(HistoryItem(
-                    step=current_step,
-                    type="observation",
-                    content=observation
-                ))
-
+                observation = f"错误:无法解析Action '{action_text}' 的工具名称或输入。"
+                context.add_step(
+                    thought=thought,
+                    action=action_text,
+                    observation=observation,
+                    error=observation,
+                    metadata={"raw_llm_output": response_text},
+                )
                 continue
 
-            # print(f"🎬 行动: {tool_name}[{tool_input}]")
-            logger.info(f"行动: {tool_name}[{tool_input}]")
-
+            error = None
             try:
                 observation = self.tool_executor.executeTool(tool_name, tool_input)
             except Exception as exc:
                 observation = f"工具调用失败: {exc}"
-            # print(f"👀 观察: {observation}")
-            logger.info(f"观察: {observation}")
+                error = observation
 
-            # 将本轮的Action和Observation添加到历史记录中
-            # self.history.append(f"Action: {action}")
-            # self.history.append(f"Observation: {observation}")
-            # self.history.append({
-            #     "step": current_step,
-            #     "type": "observation",
-            #     "content": observation
-            # })
-            self.history.append(HistoryItem(
-                step=current_step,
-                type="observation",
-                content=observation
-            ))
+            context.add_step(
+                thought=thought,
+                action=tool_name,
+                action_input=tool_input,
+                observation=str(observation),
+                error=error,
+                metadata={"raw_llm_output": response_text},
+            )
 
-        # 循环结束
-        # print("已达到最大步数，流程终止。")
-        logger.warning("已达到最大步数，流程终止。")
-        # return {
-        #     "question": question,
-        #     "answer": None,
-        #     "reason": "已达到最大步数，未能完成任务。",
-        #     "history": self.history
-        # }
-        return AgentResult(
-            question=question,
-            answer=None,
-            reason="已达到最大步数，未能完成任务。",
-            history=self.history
+        error = "已达到最大步数，未能完成任务。"
+        return super()._build_result(
+            context=context,
+            status="max_steps_exceeded",
+            error=error,
         )
 
-
-    # def _parse_output(self, text: str):
-    #     """解析LLM的输出，提取Thought和Action。"""
-    #     thought_match = re.search(r"Thought: (.*)", text)
-    #     action_match = re.search(r"Action: (.*)", text)
-    #     thought = thought_match.group(1).strip() if thought_match else None
-    #     action = action_match.group(1).strip() if action_match else None
-    #     return thought, action
     def _parse_output(self, text: str):
         """解析LLM的输出，提取Thought和Action。"""
         text = str(text).strip()
@@ -233,23 +153,27 @@ class ReActAgent:
         if bracket_match:
             return bracket_match.group(1).strip()
 
-        call_match = re.match(r"Finish\(\s*answer\s*=\s*['\"]?(.*?)['\"]?\s*\)\s*$", action_text, re.DOTALL)
+        call_match = re.match(
+            r"Finish\(\s*answer\s*=\s*['\"]?(.*?)['\"]?\s*\)\s*$",
+            action_text,
+            re.DOTALL,
+        )
         if call_match:
             return call_match.group(1).strip()
 
         return action_text.removeprefix("Finish").strip(" ()[]")
-    # def _format_history(self):
-    #     """将历史记录格式化为字符串，供提示词使用。"""
-    #     formatted = []
-    #     for item in self.history:
-    #         if isinstance(item, dict):
-    #             formatted.append(f"{item['type'].capitalize()}: {item['content']}")
-    #         else:
-    #             formatted.append(str(item))
-    #     return "\n".join(formatted)
-    def _format_history(self):
+
+    def _format_history(self, steps):
         """将历史记录格式化为字符串，供提示词使用。"""
         formatted = []
-        for item in self.history:
-            formatted.append(f"{item.type.capitalize()}: {item.content}")
+        for step in steps:
+            if step.thought:
+                formatted.append(f"Thought: {step.thought}")
+            if step.action:
+                if step.action_input is not None:
+                    formatted.append(f"Action: {step.action}[{step.action_input}]")
+                else:
+                    formatted.append(f"Action: {step.action}")
+            if step.observation:
+                formatted.append(f"Observation: {step.observation}")
         return "\n".join(formatted)

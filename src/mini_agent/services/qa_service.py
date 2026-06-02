@@ -1,12 +1,14 @@
 from dotenv import load_dotenv
 
-from models.LLM import HelloAgentsLLM
-from models.Agents import ReActAgent
-from tools.history import save_history
-from tools.registry import build_default_tools
+from mini_agent.agents.BaseAgent import AgentRunInput
+from mini_agent.agents.LLM import HelloAgentsLLM
+from mini_agent.agents.Agents import ReActAgent
+from mini_agent.tools.history import save_history
+from mini_agent.tools.registry import build_default_tools
 from pathlib import Path
 
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv()
 load_dotenv(ENV_PATH)
 
 
@@ -23,13 +25,19 @@ def build_agent(save_path: str = "chat-history.json", max_steps: int = 8) -> ReA
     )
 
 
-def ask_agent(question: str, save_flag: bool = True, save_path: str = "chat-history.json"):
+def ask_agent(
+    question: str,
+    save_flag: bool = True,
+    save_path: str = "chat-history.json",
+    max_steps: int | None = None,
+):
     """
     向智能体提问，并返回其回答和思考过程。
     """
     agent = build_agent(save_path=save_path)
+    agent_input = AgentRunInput(question=question, max_steps=max_steps)
 
-    response = agent.run(question) # response现在不是json字符串，而是一个AgentResult对象
+    response = agent.run(agent_input)
 
     if save_flag:
         save_history(response.model_dump(), save_path)
