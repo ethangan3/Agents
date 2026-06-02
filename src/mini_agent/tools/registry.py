@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from tools.builtin_tools import calculate, current_time, history_search
-from tools.general import ToolExecutor
-from tools.weather_search import search
+from mini_agent.tools.builtin_tools import calculate, current_time, history_search
+from mini_agent.tools.general import ToolExecutor
+from mini_agent.tools.weather_search import search
 
 
 def build_default_tools(history_path: str | Path = "chat-history.json") -> ToolExecutor:

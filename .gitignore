@@ -13,3 +13,10 @@ agent-try\models\__pycache__\
 agent-try\tools\__pycache__\
 agent-try\service\__pycache__\
 agent-try\models\prompts\__pycache__\
+leetcode/
+leetcode/erfen.py
+leetcode/erfen1.py
+leetcode/erfen2.py
+leetcode/erfen3.py
+langchain-learning/
+src/mini_agent.egg-info

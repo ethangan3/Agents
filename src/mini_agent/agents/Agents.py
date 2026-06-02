@@ -1,5 +1,5 @@
 from .LLM import HelloAgentsLLM
-from tools.general import ToolExecutor
+from mini_agent.tools.general import ToolExecutor
 from .prompts.react_prompts import REACT_PROMPT_TEMPLATE
 import re
 import logging

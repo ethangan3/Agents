@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from tools.history import load_history
+from mini_agent.tools.history import load_history
 
 
 def current_time(unused_input: str = "") -> str:
