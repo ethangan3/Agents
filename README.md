@@ -1,147 +1,117 @@
 # MiniAgent Runtime
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-prototype-green)
+![FastAPI](https://img.shields.io/badge/FastAPI-ready-green)
+![Streamlit](https://img.shields.io/badge/Streamlit-demo-ff4b4b)
 ![Pydantic](https://img.shields.io/badge/Pydantic-v2-purple)
-![LLM](https://img.shields.io/badge/LLM-OpenAI%20compatible-black)
+![Docker](https://img.shields.io/badge/Docker-supported-2496ed)
 ![Status](https://img.shields.io/badge/status-active%20development-orange)
 
-MiniAgent Runtime is a lightweight, from-scratch Agent runtime for studying how
-LLM agents actually execute: reasoning loops, tool registration, action parsing,
-observation feedback, and structured execution history.
+MiniAgent Runtime is a small, readable Agent runtime for learning and
+experimenting with LLM agent execution. It implements the core mechanics behind
+agent frameworks directly: unified agent inputs and outputs, step-level traces,
+tool registration, ReAct action parsing, plan execution, reflection loops, and a
+thin FastAPI service layer.
 
-The project is intentionally small. It is not another all-in-one enterprise AI
-platform. Its purpose is to make the core mechanics behind ReAct-style agents
-clear, runnable, and easy to explain.
+The goal is not to hide the runtime behind a large framework. The goal is to
+make the runtime easy to inspect, debug, test, and explain.
 
-## Why This Exists
+## Highlights
 
-Most Agent demos hide the interesting part behind large frameworks. This project
-takes the opposite route: it keeps the system compact and implements the runtime
-pieces directly.
+- **Unified agent contract**: every agent accepts `AgentRunInput` and returns
+  `AgentRunResult`.
+- **Step-level execution trace**: intermediate reasoning, action, observation,
+  error, and metadata are captured as `AgentStep` records.
+- **Shared lifecycle control**: `BaseAgent` handles run IDs, max-step limits,
+  latency, exception fallback, and trace persistence.
+- **Multiple agent strategies**: ReAct, Plan-and-Solve, and Reflection agents
+  share the same runtime shape.
+- **Tool registry**: tools are registered once and exposed to the agent and API.
+- **API and UI**: FastAPI endpoints and a Streamlit demo are included.
+- **Docker support**: run the API and frontend with Docker Compose.
 
-MiniAgent Runtime focuses on four questions:
+## Agent Types
 
-- How does an Agent decide the next action?
-- How are tools described, registered, selected, and executed?
-- How does the Observation return to the next reasoning step?
-- How can the execution trace be inspected after a run?
-
-This makes the repository useful as a learning project, interview project, and
-minimal reference implementation for Agent runtime design.
-
-## Features
-
-| Capability | Status | Description |
-|---|---:|---|
-| ReAct Agent | Available | Thought -> Action -> Observation loop with max-step control |
-| Tool Registry | Available | Register tools with names, descriptions, functions, and input schemas |
-| Tool Executor | Available | Execute tools by name and pass string or JSON-like inputs |
-| Built-in Tools | Available | Calculator, CurrentTime, Search, HistorySearch |
-| OpenAI-compatible LLM Client | Available | Works with any OpenAI-compatible chat completion endpoint |
-| Reasoning History | Available | Stores thought, action, and observation records during each run |
-| Plan-and-Solve Agent | Experimental | Planner + executor implementation |
-| Reflection Agent | Experimental | Generate, reflect, and refine loop |
-| FastAPI Service | Prototype | Basic `/health`, `/tools`, and `/ask` endpoints |
-| Web Demo | Planned | Streamlit scaffold exists, UI implementation is pending |
-| Docker Deployment | Planned | Docker files are scaffolded, runtime wiring is pending |
+| Agent | Status | What it demonstrates |
+| --- | --- | --- |
+| `ReActAgent` | Available | Thought -> Action -> Observation loop with tool calls |
+| `PlanAndSolveAgent` | Experimental | Planner first, then step-by-step execution |
+| `ReflectionAgent` | Experimental | Generate -> reflect -> refine iterations |
 
 ## Architecture
 
 ```text
-User Question
+User question
     |
     v
-ReActAgent
-    |
-    |-- builds prompt with available tools
-    |-- calls OpenAI-compatible LLM
-    |-- parses Thought / Action
+AgentRunInput
     |
     v
-ToolExecutor
+BaseAgent.run()
     |
-    |-- finds tool by name
-    |-- executes Calculator / CurrentTime / Search / HistorySearch
-    |
-    v
-Observation
-    |
-    v
-ReActAgent history
-    |
-    |-- Thought
-    |-- Action
-    |-- Observation
+    |-- create run_id
+    |-- normalize max_steps
+    |-- catch exceptions
+    |-- measure latency
+    |-- persist trace
     |
     v
-Final Answer
+Concrete agent strategy
+    |
+    |-- ReAct / Plan-and-Solve / Reflection
+    |-- append AgentStep records
+    |-- call LLM and tools when needed
+    |
+    v
+AgentRunResult
 ```
 
-The current implementation keeps the runtime simple on purpose:
-
-- `ReActAgent` owns the execution loop.
-- `HelloAgentsLLM` wraps an OpenAI-compatible streaming chat API.
-- `ToolExecutor` owns tool registration, listing, and execution.
-- Built-in tools live under `mini_agent.tools`.
-- FastAPI and demo layers are thin wrappers over the core runtime.
-
-## Project Layout
+The core implementation lives under `src/mini_agent`:
 
 ```text
-.
-├── README.md
-├── pyproject.toml
-├── .env.example
-├── Dockerfile
-├── docker-compose.yml
-├── demos/
-│   └── react_demo.py
-├── frontend/
-│   └── app.py
-├── src/
-│   └── mini_agent/
-│       ├── agents/
-│       │   ├── Agents.py
-│       │   ├── LLM.py
-│       │   ├── PlanAndSolveAgent.py
-│       │   ├── ReflectionAgent.py
-│       │   └── prompts/
-│       ├── api/
-│       │   ├── app.py
-│       │   └── schema.py
-│       ├── services/
-│       │   └── qa_service.py
-│       └── tools/
-│           ├── builtin_tools.py
-│           ├── general.py
-│           ├── registry.py
-│           ├── history.py
-│           └── weather_search.py
-└── docs/
-    └── mini_agent_runtime_optimization_plan.md
+src/mini_agent/
+  agents/
+    BaseAgent.py            # shared input/output, lifecycle, max-step handling
+    Agents.py               # ReActAgent
+    PlanAndSolveAgent.py    # planner + executor strategy
+    ReflectionAgent.py      # generate/reflect/refine strategy
+    LLM.py                  # OpenAI-compatible LLM wrapper
+  api/
+    app.py                  # FastAPI routes
+    schema.py               # request/response models
+  services/
+    qa_service.py           # compatibility service for /ask
+  tools/
+    base.py                 # tool result models
+    builtin.py              # built-in tool implementations
+    general.py              # ToolExecutor
+    registry.py             # default tool registration
+    weather_search.py       # weather/search integration
+  trace/
+    models.py               # persisted trace model
+    recorder.py             # JSON trace recorder
 ```
 
 ## Quick Start
 
 ### 1. Install
 
-Using `uv`:
+This project is designed to work well with `uv`:
 
 ```bash
-uv sync
+uv sync --extra frontend
 ```
 
-Or using standard Python tooling:
+Or install it with standard Python tooling:
 
 ```bash
 python -m venv .venv
 pip install -e .
 ```
 
-### 2. Configure Environment
+### 2. Configure
 
-Copy the example environment file:
+Create a local environment file:
 
 ```bash
 cp .env.example .env
@@ -153,88 +123,159 @@ On Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Then fill in the values:
+Fill in your OpenAI-compatible model provider:
 
 ```env
 LLM_API_KEY=your_api_key
 LLM_MODEL_ID=your_model_name
 LLM_BASE_URL=https://your-openai-compatible-endpoint/v1
-SERPAPI_API_KEY=your_serpapi_key
+SERPAPI_API_KEY=
 ```
 
-`SERPAPI_API_KEY` is only required when using the `Search` tool.
+`SERPAPI_API_KEY` is only required when you use search-related tools.
 
-### 3. Run a ReAct Agent
+### 3. Run an Agent in Python
 
 ```python
 from dotenv import load_dotenv
 
 from mini_agent.agents.Agents import ReActAgent
+from mini_agent.agents.BaseAgent import AgentRunInput
 from mini_agent.agents.LLM import HelloAgentsLLM
 from mini_agent.tools.registry import build_default_tools
 
 load_dotenv()
 
-llm = HelloAgentsLLM()
-tools = build_default_tools()
-
 agent = ReActAgent(
-    llm_client=llm,
-    tool_executor=tools,
+    llm_client=HelloAgentsLLM(),
+    tool_executor=build_default_tools(),
     max_steps=5,
 )
 
-result = agent.run("计算 23 * 17，然后告诉我当前时间。")
+result = agent.run(
+    AgentRunInput(
+        question="Calculate 23 * 17, then tell me the current time.",
+        max_steps=5,
+    )
+)
+
 print(result.model_dump())
 ```
 
-The returned object contains:
+### 4. Run the API
+
+```bash
+uv run uvicorn mini_agent.api.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+Open:
+
+- Health check: <http://localhost:8000/health>
+- API docs: <http://localhost:8000/docs>
+
+### 5. Run the Streamlit UI
+
+```bash
+uv run streamlit run frontend/app.py
+```
+
+The UI expects the API at `http://localhost:8000` by default. You can override
+it with:
+
+```bash
+MINI_AGENT_API_URL=http://localhost:8000
+```
+
+## Docker
+
+Build and run both the API and Streamlit frontend:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+- API: <http://localhost:8000>
+- API docs: <http://localhost:8000/docs>
+- Frontend: <http://localhost:8501>
+
+The Compose setup mounts local traces into `./data`:
+
+```text
+./data/agent-runs.json
+```
+
+Useful Docker commands:
+
+```bash
+docker compose logs -f api
+docker compose logs -f frontend
+docker compose down
+```
+
+If dependency installation is slow on Windows, this is usually caused by large
+Python wheels such as data or LLM framework dependencies. The Docker image sets
+`UV_LINK_MODE=copy` to avoid hardlink warnings across filesystems.
+
+## API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/health` | Health check |
+| `GET` | `/v1/tools` | List registered tools |
+| `POST` | `/v1/agents/react/run` | Run the ReAct agent |
+| `POST` | `/v1/agents/plan-solve/run` | Run the Plan-and-Solve agent |
+| `POST` | `/v1/agents/reflection/run` | Run the Reflection agent |
+| `GET` | `/v1/runs` | List recent persisted traces |
+| `GET` | `/v1/runs/{run_id}` | Fetch one persisted trace |
+| `POST` | `/ask` | Compatibility endpoint for the ReAct service |
+
+Example:
+
+```bash
+curl -X POST http://localhost:8000/v1/agents/react/run \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"Calculate 12 * 8, then tell me the current time.\",\"max_steps\":6}"
+```
+
+Response shape:
 
 ```json
 {
-  "question": "...",
-  "answer": "...",
-  "reason": "...",
-  "history": [
+  "run_id": "9a4d...",
+  "agent_type": "react",
+  "question": "Calculate 12 * 8, then tell me the current time.",
+  "answer": "96, and the current time is ...",
+  "steps": [
     {
-      "step": 1,
-      "type": "thought",
-      "content": "..."
-    },
-    {
-      "step": 1,
-      "type": "action",
-      "content": "Calculator[23 * 17]"
-    },
-    {
-      "step": 1,
-      "type": "observation",
-      "content": "391"
+      "step_id": 1,
+      "thought": "I should calculate first.",
+      "action": "Calculator",
+      "action_input": "12 * 8",
+      "observation": "96",
+      "error": null,
+      "metadata": {}
     }
-  ]
+  ],
+  "status": "success",
+  "latency_ms": 1234,
+  "error": null,
+  "metadata": {}
 }
 ```
 
-### 4. Run the Bundled Demo
-
-```bash
-python demos/react_demo.py
-```
-
-The bundled demo currently uses `MIMO_API_KEY`, `MIMO_URL`, and `MIMO_MODEL`
-aliases. If you prefer the generic environment variables, instantiate
-`HelloAgentsLLM()` without explicit arguments as shown above.
-
 ## Built-in Tools
 
-| Tool | Purpose | Notes |
-|---|---|---|
-| `Calculator` | Safe arithmetic evaluation | Supports basic numeric expressions |
-| `CurrentTime` | Local date and time | No external API required |
-| `Search` | Web search through SerpAPI | Requires `SERPAPI_API_KEY` |
-| `HistorySearch` | Search saved local conversation history | Reads JSON history records |
+| Tool | Purpose |
+| --- | --- |
+| `Calculator` | Evaluate basic arithmetic expressions |
+| `CurrentTime` | Return the current local time |
+| `Search` | Search through SerpAPI |
+| `HistorySearch` | Search local conversation history |
+| `Todo` | Split task text into a simple todo list |
 
-Tools are registered in one place:
+Register the default tool set:
 
 ```python
 from mini_agent.tools.registry import build_default_tools
@@ -243,142 +284,125 @@ tools = build_default_tools()
 print(tools.listTools())
 ```
 
-Registering a new tool:
+Register a custom tool:
 
 ```python
 from mini_agent.tools.general import ToolExecutor
 
-def todo_splitter(text: str) -> str:
-    return "\n".join(f"- {item.strip()}" for item in text.split(";") if item.strip())
+def split_tasks(text: str) -> str:
+    return "\n".join(
+        f"- {item.strip()}"
+        for item in text.split(";")
+        if item.strip()
+    )
 
 tools = ToolExecutor()
 tools.registerTool(
-    "TodoSplitter",
-    "Split a semicolon-separated task description into todo items.",
-    todo_splitter,
-    {"text": "str, semicolon-separated todo text"},
+    name="TaskSplitter",
+    description="Split semicolon-separated text into tasks.",
+    func=split_tasks,
+    args_schema={"text": "str"},
 )
 ```
 
-Once registered, the ReAct Agent can call it with:
+## Runtime Contract
 
-```text
-Action: TodoSplitter[write README; add tests; clean imports]
+All agents share the same input and output model.
+
+Input:
+
+```python
+AgentRunInput(
+    question="What should the agent solve?",
+    max_steps=5,
+    metadata={"source": "demo"},
+)
 ```
 
-## ReAct Output Format
+Output:
 
-The prompt asks the model to respond with:
-
-```text
-Thought: analyze the problem and decide what to do next
-Action: ToolName[tool input]
+```python
+AgentRunResult(
+    run_id="...",
+    agent_type="react",
+    question="...",
+    answer="...",
+    steps=[...],
+    status="success",
+    latency_ms=1200,
+    error=None,
+    metadata={},
+)
 ```
 
-When the model has enough information, it should finish with:
+Possible statuses:
 
-```text
-Action: Finish[final answer]
-```
+- `success`
+- `failed`
+- `max_steps_exceeded`
 
-The runtime then:
-
-1. Parses the `Action`.
-2. Executes the selected tool.
-3. Appends the `Observation` to history.
-4. Repeats until `Finish[...]` or `max_steps` is reached.
-
-## API Prototype
-
-The FastAPI layer currently exposes a small prototype API:
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Service health check |
-| `GET` | `/tools` | List registered tools |
-| `POST` | `/ask` | Ask the ReAct Agent a question |
-
-Intended local command:
+## Demos
 
 ```bash
-uvicorn mini_agent.api.app:app --reload --host 0.0.0.0 --port 8000
+uv run python demos/react_demo.py
+uv run python demos/plan_solve_demo.py
+uv run python demos/reflection_demo.py
 ```
 
-Example request:
+Some older demos still use `MIMO_API_KEY`, `MIMO_URL`, and `MIMO_MODEL` as
+provider aliases. The package runtime uses `LLM_API_KEY`, `LLM_BASE_URL`, and
+`LLM_MODEL_ID` by default.
+
+## Tests
+
+Run the test suite:
 
 ```bash
-curl -X POST http://localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d "{\"question\":\"计算 12 * 8，然后告诉我当前时间\",\"save_flag\":true}"
+uv run pytest
 ```
 
-The API module is being migrated from the original script layout to package
-qualified imports. If you run into import errors, use the Python runtime example
-above as the stable path while the API layer is being finalized.
+The tests cover:
 
-## Environment Variables
+- Base agent lifecycle and max-step behavior
+- Unified request and response schemas
+- ReAct parser and runtime flow
+- Plan-and-Solve step recording
+- Reflection step recording
+- Tool registry and executor behavior
+- Built-in tools
+- Trace recorder persistence
+- FastAPI route behavior
+
+## Configuration
 
 | Variable | Required | Description |
-|---|---:|---|
-| `LLM_API_KEY` | Yes | API key for an OpenAI-compatible model provider |
-| `LLM_MODEL_ID` | Yes | Model name used by chat completion |
+| --- | --- | --- |
+| `LLM_API_KEY` | Yes | API key for an OpenAI-compatible provider |
+| `LLM_MODEL_ID` | Yes | Model name |
 | `LLM_BASE_URL` | Yes | OpenAI-compatible base URL |
-| `LLM_TIMEOUT` | No | Request timeout in seconds, defaults to `60` |
-| `SERPAPI_API_KEY` | No | Required only by the `Search` tool |
-| `MIMO_API_KEY` | Demo only | Alias used by `demos/react_demo.py` |
-| `MIMO_URL` | Demo only | Alias used by `demos/react_demo.py` |
-| `MIMO_MODEL` | Demo only | Alias used by `demos/react_demo.py` |
-
-## Development Notes
-
-This repository is in active refactoring from an experimental script collection
-to a standard Python package. The core ReAct loop and tool system are already in
-`src/mini_agent`; service, API, Docker, and UI layers are still being cleaned up.
-
-Recommended next engineering steps:
-
-- Normalize imports to `mini_agent.*` across API and service modules.
-- Add `AgentRunResult` with `run_id`, `status`, `latency_ms`, and structured steps.
-- Add pytest coverage for calculator, tool registry, action parsing, and API health.
-- Implement the Streamlit UI in `frontend/app.py`.
-- Fill in `Dockerfile` and `docker-compose.yml`.
-- Add trace persistence and query APIs.
+| `SERPAPI_API_KEY` | No | Required only for search tools |
+| `MINI_AGENT_API_URL` | No | Frontend API URL, defaults to `http://localhost:8000` |
+| `MINI_AGENT_TRACE_PATH` | No | Trace file path, defaults to `agent-runs.json` |
+| `MINI_AGENT_TRACE_DISABLED` | No | Set to `true` to disable trace persistence |
 
 ## Roadmap
 
 - [x] Move core code into `src/mini_agent`
-- [x] Implement ReAct Agent loop
-- [x] Implement tool registry and executor
-- [x] Add Calculator, CurrentTime, Search, and HistorySearch tools
-- [x] Add OpenAI-compatible LLM client
-- [ ] Normalize package imports
-- [ ] Add unified `BaseAgent` and `AgentRunResult`
-- [ ] Add persistent run trace storage
-- [ ] Add `/v1/agents/react/run` API
-- [ ] Add Plan-and-Solve and Reflection API endpoints
-- [ ] Add Streamlit demo UI
-- [ ] Add Docker Compose deployment
-- [ ] Add automated tests
-
-## Interview Explanation
-
-A concise way to describe this project:
-
-```text
-MiniAgent Runtime is a lightweight Agent runtime implemented from scratch.
-It focuses on the core mechanisms behind Agent frameworks: the ReAct execution
-loop, tool registration, action parsing, observation feedback, and reasoning
-history. Compared with enterprise Agent platforms, this project is deliberately
-small so that the Agent internals are easy to inspect, debug, and explain.
-```
-
-Key technical talking points:
-
-- Why `ToolExecutor` is better than hard-coded tool calls.
-- How `Thought -> Action -> Observation` creates an iterative reasoning loop.
-- How max-step control prevents infinite Agent execution.
-- How tool errors are converted into observations instead of crashing the loop.
-- How this runtime could later connect to MCP tools or LangGraph workflows.
+- [x] Add unified `BaseAgent`, `AgentRunInput`, and `AgentRunResult`
+- [x] Add shared max-step and exception handling
+- [x] Add ReAct Agent runtime
+- [x] Add Plan-and-Solve and Reflection agents
+- [x] Add tool registry and built-in tools
+- [x] Add JSON trace persistence
+- [x] Add FastAPI endpoints
+- [x] Add Streamlit frontend
+- [x] Add Docker and Docker Compose setup
+- [x] Add unit test skeletons and runtime tests
+- [ ] Clean up legacy demo environment aliases
+- [ ] Add streaming API responses
+- [ ] Add richer trace search and filtering
+- [ ] Add CI for linting and tests
+- [ ] Add a public license before publishing
 
 ## License
 
