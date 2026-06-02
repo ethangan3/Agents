@@ -42,6 +42,15 @@ def test_parse_output_strips_observation_from_action():
     assert action == "Search[北京天气]"
 
 
+def test_parse_output_converts_final_answer_to_finish_action():
+    agent = make_agent()
+
+    thought, action = agent._parse_output("Thought: 已经足够回答\nFinal Answer: 最终答案")
+
+    assert thought == "已经足够回答"
+    assert action == "Finish[最终答案]"
+
+
 def test_parse_action_extracts_tool_name_and_input():
     agent = make_agent()
 
@@ -49,6 +58,15 @@ def test_parse_action_extracts_tool_name_and_input():
 
     assert tool_name == "Calculator"
     assert tool_input == "3 * (2 + 5)"
+
+
+def test_parse_action_accepts_whitespace_and_multiline_input():
+    agent = make_agent()
+
+    tool_name, tool_input = agent._parse_action("Search [ 第一行\n第二行 ]")
+
+    assert tool_name == "Search"
+    assert tool_input == "第一行\n第二行"
 
 
 def test_parse_action_returns_none_for_invalid_format():
@@ -72,5 +90,13 @@ def test_extract_final_answer_from_finish_call_style():
     agent = make_agent()
 
     answer = agent._extract_final_answer('Finish(answer="最终答案")')
+
+    assert answer == "最终答案"
+
+
+def test_extract_final_answer_from_final_answer_label():
+    agent = make_agent()
+
+    answer = agent._extract_final_answer("Final Answer: 最终答案")
 
     assert answer == "最终答案"

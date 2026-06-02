@@ -23,8 +23,8 @@ def make_tools() -> ToolExecutor:
     return tools
 
 
-def test_react_returns_success_when_llm_finishes():
-    llm = SequenceLLM(["Thought: 已完成\nAction: Finish[最终答案]"])
+def test_react_returns_success_when_llm_outputs_final_answer():
+    llm = SequenceLLM(["Thought: 已完成\nFinal Answer: 最终答案"])
     agent = ReActAgent(llm_client=llm, tool_executor=ToolExecutor())
 
     result = agent.run("问题")
@@ -34,6 +34,16 @@ def test_react_returns_success_when_llm_finishes():
     assert len(result.steps) == 1
     assert result.steps[0].action == "Finish"
     assert result.steps[0].action_input == "最终答案"
+
+
+def test_react_still_supports_legacy_finish_action():
+    llm = SequenceLLM(["Thought: 已完成\nAction: Finish[最终答案]"])
+    agent = ReActAgent(llm_client=llm, tool_executor=ToolExecutor())
+
+    result = agent.run("问题")
+
+    assert result.status == "success"
+    assert result.answer == "最终答案"
 
 
 def test_react_executes_tool_and_records_observation():
@@ -68,6 +78,27 @@ def test_react_records_tool_error_as_step_error():
     assert result.steps[0].action == "MissingTool"
     assert result.steps[0].error is not None
     assert "工具调用失败" in result.steps[0].observation
+
+
+def test_react_can_continue_after_tool_error_observation():
+    llm = SequenceLLM(
+        [
+            "Thought: 先试一个不存在的工具\nAction: MissingTool[input]",
+            "Thought: 已经看到工具失败\nFinal Answer: 工具不可用",
+        ]
+    )
+    agent = ReActAgent(
+        llm_client=llm,
+        tool_executor=ToolExecutor(),
+        max_steps=2,
+    )
+
+    result = agent.run("问题")
+
+    assert result.status == "success"
+    assert result.answer == "工具不可用"
+    assert result.steps[0].error == "Tool not found: MissingTool"
+    assert "Tool not found: MissingTool" in llm.messages[1][0]["content"]
 
 
 def test_react_returns_failed_when_llm_response_is_empty():

@@ -303,20 +303,20 @@ python examples/reflection_demo.py
 
 ### 主要任务
 
-- [ ] 定义 `BaseTool`。
-- [ ] 定义 `ToolSpec`。
-- [ ] 实现 `ToolRegistry`。
-- [ ] 实现 `ToolExecutor`。
-- [ ] 将已有工具统一迁移到 `tools/builtin.py`。
-- [ ] 保留或实现以下工具：
+- [x] 定义 `BaseTool`。
+- [x] 定义 `ToolSpec`。
+- [x] 实现 `ToolRegistry`。
+- [x] 实现 `ToolExecutor`。
+- [x] 将已有工具统一迁移到 `tools/builtin.py`。
+- [x] 保留或实现以下工具：
   - `CalculatorTool`
   - `CurrentTimeTool`
   - `SearchTool`
   - `HistorySearchTool`
-- [ ] 新增一个业务类工具，建议二选一：
+- [x] 新增一个业务类工具，建议二选一：
   - `TodoTool`：将用户输入拆成待办事项
   - `FileSummaryTool`：对本地文本文件做摘要
-- [ ] 工具调用失败时返回结构化错误，而不是直接抛异常。
+- [x] 工具调用失败时返回结构化错误，而不是直接抛异常。
 
 ### 推荐工具结构
 
@@ -355,20 +355,20 @@ registry.register(HistorySearchTool())
 
 必须满足以下条件：
 
-- [ ] 新增工具时，只需要在 `ToolRegistry` 中注册，不需要修改 Agent 主循环。
-- [ ] 可以通过代码查看所有工具：
+- [x] 新增工具时，只需要在 `ToolRegistry` 中注册，不需要修改 Agent 主循环。
+- [x] 可以通过代码查看所有工具：
 
 ```python
 tools = registry.list_tools()
 ```
 
-- [ ] 可以通过工具名调用工具：
+- [x] 可以通过工具名调用工具：
 
 ```python
 executor.execute("Calculator", "1 + 2 * 3")
 ```
 
-- [ ] 工具调用失败时返回明确错误信息，例如：
+- [x] 工具调用失败时返回明确错误信息，例如：
 
 ```json
 {
@@ -377,8 +377,8 @@ executor.execute("Calculator", "1 + 2 * 3")
 }
 ```
 
-- [ ] 至少包含 4 个可运行工具。
-- [ ] 至少有 2 个工具测试用例通过。
+- [x] 至少包含 4 个可运行工具。
+- [x] 至少有 2 个工具测试用例通过。
 
 ---
 
@@ -390,8 +390,8 @@ executor.execute("Calculator", "1 + 2 * 3")
 
 ### 主要任务
 
-- [ ] 规范 ReAct Prompt。
-- [ ] 固定模型输出格式：
+- [x] 规范 ReAct Prompt。
+- [x] 固定模型输出格式：
 
 ```text
 Thought: ...
@@ -400,11 +400,11 @@ Observation: ...
 Final Answer: ...
 ```
 
-- [ ] 实现稳健的 Action 解析器。
-- [ ] 支持最大步数限制。
-- [ ] 支持工具调用失败后的 Observation 回传。
-- [ ] 支持提前结束：检测到 `Final Answer` 后终止循环。
-- [ ] 支持每一步写入 trace。
+- [x] 实现稳健的 Action 解析器。
+- [x] 支持最大步数限制。
+- [x] 支持工具调用失败后的 Observation 回传。
+- [x] 支持提前结束：检测到 `Final Answer` 后终止循环。
+- [x] 支持每一步写入 trace。
 
 ### 推荐 ReAct 执行流程
 
@@ -423,19 +423,19 @@ Final Answer: ...
 
 必须满足以下条件：
 
-- [ ] ReAct Agent 能完成至少 3 类任务：
+- [x] ReAct Agent 能完成至少 3 类任务：
   - 计算类问题
   - 当前时间类问题
   - 需要多步推理的问题
-- [ ] Action 解析器能够解析如下格式：
+- [x] Action 解析器能够解析如下格式：
 
 ```text
 Action: Calculator[3 * (2 + 5)]
 ```
 
-- [ ] 达到最大步数时，Agent 能返回失败状态或总结已有观察结果。
-- [ ] 工具不存在时，Agent 不崩溃，而是将错误作为 Observation 继续处理或结束。
-- [ ] 返回结果中包含完整 steps。
+- [x] 达到最大步数时，Agent 能返回失败状态或总结已有观察结果。
+- [x] 工具不存在时，Agent 不崩溃，而是将错误作为 Observation 继续处理或结束。
+- [x] 返回结果中包含完整 steps。
 
 ---
 
@@ -899,4 +899,3 @@ MiniAgent Runtime：轻量级多范式 Agent 执行框架 | Python, FastAPI, Pyd
 - AI 应用开发实习生
 - Python 后端 AI 方向实习生
 - LLM 应用工程实习生
-

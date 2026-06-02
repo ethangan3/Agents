@@ -70,7 +70,7 @@ class ReActAgent(BaseAgent):
                     error=error,
                 )
 
-            if action_text.startswith("Finish"):
+            if self._is_finish_action(action_text):
                 final_answer = self._extract_final_answer(action_text)
                 context.add_step(
                     thought=thought,
@@ -97,20 +97,20 @@ class ReActAgent(BaseAgent):
                 )
                 continue
 
-            error = None
-            try:
-                observation = self.tool_executor.executeTool(tool_name, tool_input)
-            except Exception as exc:
-                observation = f"工具调用失败: {exc}"
-                error = observation
+            tool_result = self.tool_executor.execute(tool_name, tool_input)
+            observation = tool_result.to_observation()
+            error = None if tool_result.is_success else tool_result.error
 
             context.add_step(
                 thought=thought,
                 action=tool_name,
                 action_input=tool_input,
-                observation=str(observation),
+                observation=observation,
                 error=error,
-                metadata={"raw_llm_output": response_text},
+                metadata={
+                    "raw_llm_output": response_text,
+                    "tool_result": tool_result.model_dump(),
+                },
             )
 
         error = "已达到最大步数，未能完成任务。"
@@ -124,44 +124,89 @@ class ReActAgent(BaseAgent):
         """解析LLM的输出，提取Thought和Action。"""
         text = str(text).strip()
 
-        thought = None
-        action = None
+        thought = self._extract_labeled_block(
+            text,
+            "Thought",
+            stop_labels=("Action", "Observation", "Final Answer"),
+        )
+        final_answer = self._extract_final_answer_from_output(text)
+        if final_answer:
+            return thought, f"Finish[{final_answer}]"
 
-        if "Thought:" in text and "Action:" in text:
-            thought = text.split("Thought:", 1)[1].split("Action:", 1)[0].strip()
-            action = text.split("Action:", 1)[1].strip()
-        elif "Action:" in text:
-            action = text.split("Action:", 1)[1].strip()
-        elif "Thought:" in text:
-            thought = text.split("Thought:", 1)[1].strip()
+        action = self._extract_labeled_block(
+            text,
+            "Action",
+            stop_labels=("Observation", "Final Answer", "Thought"),
+        )
 
-        if action and "\nObservation:" in action:
-            action = action.split("\nObservation:", 1)[0].strip()
+        if not action:
+            candidate = text.strip()
+            if self._is_finish_action(candidate) or self._parse_action(candidate) != (None, None):
+                action = candidate
 
         return thought, action
 
     def _parse_action(self, action_text: str):
         """解析Action字符串，提取工具名称和输入。"""
-        match = re.match(r"(\w+)\[(.*)\]", action_text, re.DOTALL)
+        match = re.match(r"\s*([A-Za-z_]\w*)\s*\[(.*)\]\s*$", action_text, re.DOTALL)
         if match:
-            return match.group(1), match.group(2)
+            return match.group(1), match.group(2).strip()
         return None, None
 
     def _extract_final_answer(self, action_text: str) -> str:
         """从Finish动作中提取最终答案。"""
-        bracket_match = re.match(r"Finish\[(.*)\]\s*$", action_text, re.DOTALL)
+        final_answer = self._extract_final_answer_from_output(action_text)
+        if final_answer:
+            return final_answer
+
+        bracket_match = re.match(
+            r"\s*Finish\s*\[(.*)\]\s*$",
+            action_text,
+            re.DOTALL | re.IGNORECASE,
+        )
         if bracket_match:
             return bracket_match.group(1).strip()
 
         call_match = re.match(
-            r"Finish\(\s*answer\s*=\s*['\"]?(.*?)['\"]?\s*\)\s*$",
+            r"\s*Finish\(\s*answer\s*=\s*['\"]?(.*?)['\"]?\s*\)\s*$",
             action_text,
-            re.DOTALL,
+            re.DOTALL | re.IGNORECASE,
         )
         if call_match:
             return call_match.group(1).strip()
 
         return action_text.removeprefix("Finish").strip(" ()[]")
+
+    def _extract_final_answer_from_output(self, text: str) -> str | None:
+        return self._extract_labeled_block(
+            text,
+            "Final Answer",
+            stop_labels=("Thought", "Action", "Observation"),
+        )
+
+    def _is_finish_action(self, action_text: str) -> bool:
+        stripped = str(action_text).strip()
+        return bool(
+            re.match(r"(?is)^Finish\s*(\[|\()", stripped)
+            or re.match(r"(?is)^Final Answer\s*[:：]", stripped)
+        )
+
+    def _extract_labeled_block(
+        self,
+        text: str,
+        label: str,
+        stop_labels: tuple[str, ...],
+    ) -> str | None:
+        stop_pattern = "|".join(re.escape(stop_label) for stop_label in stop_labels)
+        pattern = (
+            rf"(?is)(?:^|\n)\s*{re.escape(label)}\s*[:：]\s*"
+            rf"(.*?)(?=\n\s*(?:{stop_pattern})\s*[:：]|\Z)"
+        )
+        match = re.search(pattern, text)
+        if not match:
+            return None
+        value = match.group(1).strip()
+        return value or None
 
     def _format_history(self, steps):
         """将历史记录格式化为字符串，供提示词使用。"""
