@@ -103,8 +103,15 @@ class BaseAgent(ABC):
 
     agent_type = "base"
 
-    def __init__(self, max_steps: int = 5):
+    def __init__(
+        self,
+        max_steps: int = 5,
+        trace_recorder: Any | None = None,
+        trace_enabled: bool = True,
+    ):
         self.max_steps = max_steps
+        self.trace_recorder = trace_recorder
+        self.trace_enabled = trace_enabled
 
     def run(self, agent_input: str | AgentRunInput) -> AgentRunResult:
         run_input = self._normalize_input(agent_input)
@@ -142,6 +149,7 @@ class BaseAgent(ABC):
             )
 
         result.latency_ms = int((time.perf_counter() - started_at) * 1000)
+        self._record_trace(result)
         return result
 
     @abstractmethod
@@ -178,3 +186,24 @@ class BaseAgent(ABC):
 
     def _new_run_id(self) -> str:
         return uuid4().hex
+
+    def _record_trace(self, result: AgentRunResult) -> None:
+        if not self.trace_enabled:
+            return
+
+        recorder = self.trace_recorder
+        if recorder is None:
+            from mini_agent.trace.recorder import get_default_trace_recorder
+
+            recorder = get_default_trace_recorder()
+
+        if recorder is None:
+            return
+
+        try:
+            trace_path = getattr(recorder, "trace_path", None)
+            if trace_path is not None:
+                result.metadata.setdefault("trace_path", str(trace_path))
+            recorder.record(result)
+        except Exception as exc:
+            result.metadata["trace_error"] = str(exc)

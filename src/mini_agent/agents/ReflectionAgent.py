@@ -8,8 +8,18 @@ from mini_agent.agents.BaseAgent import AgentRunContext, AgentRunInput, AgentRun
 class ReflectionAgent(BaseAgent):
     agent_type = "reflection"
 
-    def __init__(self, llm_client, max_iterations=3):
-        super().__init__(max_steps=max_iterations * 2 + 1)
+    def __init__(
+        self,
+        llm_client,
+        max_iterations=3,
+        trace_recorder=None,
+        trace_enabled: bool = True,
+    ):
+        super().__init__(
+            max_steps=max_iterations * 2 + 1,
+            trace_recorder=trace_recorder,
+            trace_enabled=trace_enabled,
+        )
         self.llm_client = llm_client
         self.memory = Memory()
         self.max_iterations = max_iterations

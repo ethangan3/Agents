@@ -21,8 +21,14 @@ class ReActAgent(BaseAgent):
         llm_client: HelloAgentsLLM,
         tool_executor: ToolExecutor,
         max_steps: int = 5,
+        trace_recorder=None,
+        trace_enabled: bool = True,
     ):
-        super().__init__(max_steps=max_steps)
+        super().__init__(
+            max_steps=max_steps,
+            trace_recorder=trace_recorder,
+            trace_enabled=trace_enabled,
+        )
         self.llm_client = llm_client
         self.tool_executor = tool_executor
 

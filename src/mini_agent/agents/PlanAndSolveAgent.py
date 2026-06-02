@@ -6,11 +6,21 @@ from mini_agent.agents.BaseAgent import AgentRunContext, AgentRunInput, AgentRun
 class PlanAndSolveAgent(BaseAgent):
     agent_type = "plan_solve"
 
-    def __init__(self, llm_client, max_steps: int = 5):
+    def __init__(
+        self,
+        llm_client,
+        max_steps: int = 5,
+        trace_recorder=None,
+        trace_enabled: bool = True,
+    ):
         """
         初始化智能体，同时创建规划器和执行器实例。
         """
-        super().__init__(max_steps=max_steps)
+        super().__init__(
+            max_steps=max_steps,
+            trace_recorder=trace_recorder,
+            trace_enabled=trace_enabled,
+        )
         self.llm_client = llm_client
         self.planner = Planner(self.llm_client)
         self.executor = Executor(self.llm_client)

@@ -447,11 +447,11 @@ Action: Calculator[3 * (2 + 5)]
 
 ### 主要任务
 
-- [ ] 定义 `RunTrace` 数据结构。
-- [ ] 定义 `TraceRecorder`。
-- [ ] 使用 SQLite 或 JSON 文件保存运行记录。
-- [ ] 每次运行生成唯一 `run_id`。
-- [ ] 记录：
+- [x] 定义 `RunTrace` 数据结构。
+- [x] 定义 `TraceRecorder`。
+- [x] 使用 SQLite 或 JSON 文件保存运行记录。
+- [x] 每次运行生成唯一 `run_id`。
+- [x] 记录：
   - 输入问题
   - Agent 类型
   - 每一步 Thought / Action / Observation
@@ -459,7 +459,7 @@ Action: Calculator[3 * (2 + 5)]
   - 执行状态
   - 延迟
   - 时间戳
-- [ ] 提供查询接口：
+- [x] 提供查询接口：
   - 查询单条 run
   - 查询最近 runs
 
@@ -496,12 +496,12 @@ Action: Calculator[3 * (2 + 5)]
 
 必须满足以下条件：
 
-- [ ] 每次 Agent 运行都会生成 `run_id`。
-- [ ] 每次 Agent 运行都会记录完整 steps。
-- [ ] 可以通过 `run_id` 查询历史运行结果。
-- [ ] 可以查看最近 10 条运行记录。
-- [ ] Trace 记录不依赖大模型输出是否完美，失败任务也要保存。
-- [ ] 至少有 1 个 Trace 相关测试通过。
+- [x] 每次 Agent 运行都会生成 `run_id`。
+- [x] 每次 Agent 运行都会记录完整 steps。
+- [x] 可以通过 `run_id` 查询历史运行结果。
+- [x] 可以查看最近 10 条运行记录。
+- [x] Trace 记录不依赖大模型输出是否完美，失败任务也要保存。
+- [x] 至少有 1 个 Trace 相关测试通过。
 
 ---
 
